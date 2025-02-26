@@ -1,0 +1,9 @@
+version: "1.0.0"
+description: "ESP32 generic circular buffer"
+url: "https://github.com/pylover/ering"
+license: "MIT"
+
+dependencies:
+  ## Required IDF version
+  idf:
+    version: ">=4.1.0"
