@@ -22,12 +22,11 @@ ERING_NAME1(_init) (struct ERING_NAME() *ring, uint8_t maskbits) {
     ring->mask = mask;
     ring->buffer = malloc(ERING_BYTES(ring->mask + 1));
     if (ring->buffer == NULL) {
-        ERROR("bits: %d mask: %d", maskbits, mask);
         return -1;
     }
 
-    ring->r = 0;
-    ring->w = 0;
+    ring->tail = 0;
+    ring->head = 0;
     return 0;
 }
 
@@ -65,13 +64,13 @@ ERING_NAME1(_popwrite) (struct ERING_NAME() *ring, int fd, size_t count) {
     toend = ERING_USED_TOEND(ring);
     if (toend) {
         toread = _MIN(toend, count);
-        bytes = write(fd, ring->buffer + ring->r, ERING_BYTES(toread));
+        bytes = write(fd, ring->buffer + ring->tail, ERING_BYTES(toread));
         if (bytes < toread) {
             /* eof, error */
             return -1;
         }
 
-        ring->r = ERING_CALC(ring, ring->r + toread);
+        ring->tail = ERING_CALC(ring, ring->tail + toread);
         count -= toread;
         ret += toread;
     }
@@ -86,7 +85,7 @@ ERING_NAME1(_popwrite) (struct ERING_NAME() *ring, int fd, size_t count) {
         return -1;
     }
 
-    ring->r = ERING_CALC(ring, ring->r + count);
+    ring->tail = ERING_CALC(ring, ring->tail + count);
     count -= toend;
     ret += count;
 
@@ -103,14 +102,14 @@ ERING_NAME1(_popwrite) (struct ERING_NAME() *ring, int fd, size_t count) {
 //     size_t toend = ERING_USED_TOEND(q);
 //     ssize_t total = ERING_MIN(toend, count);
 //
-//     memcpy(data, q->buffer + q->r, ERING_BYTES(total));
-//     q->r = ERING_READER_CALC(q, total);
+//     memcpy(data, q->buffer + q->tail, ERING_BYTES(total));
+//     q->tail = ERING_READER_CALC(q, total);
 //     count -= total;
 //
 //     if (count) {
 //         count = ERING_MIN(ERING_USED_TOEND(q), count);
 //         memcpy(data + total, q->buffer, ERING_BYTES(count));
-//         q->r += count;
+//         q->tail += count;
 //         total += count;
 //     }
 //
@@ -131,8 +130,8 @@ ERING_NAME1(_popwrite) (struct ERING_NAME() *ring, int fd, size_t count) {
 //
 // int
 // ERING_NAME(reset) (ERING_T() *q) {
-//     q->r = 0;
-//     q->w = 0;
+//     q->tail = 0;
+//     q->head = 0;
 //     return 0;
 // }
 //
@@ -145,13 +144,13 @@ ERING_NAME1(_popwrite) (struct ERING_NAME() *ring, int fd, size_t count) {
 //
 //     size_t toend = ERING_FREE_TOEND(q);
 //     size_t chunklen = ERING_MIN(toend, count);
-//     memcpy(q->buffer + q->w, data, ERING_BYTES(chunklen));
-//     q->w = ERING_WRITER_CALC(q, chunklen);
+//     memcpy(q->buffer + q->head, data, ERING_BYTES(chunklen));
+//     q->head = ERING_WRITER_CALC(q, chunklen);
 //
 //     if (count > chunklen) {
 //         count -= chunklen;
 //         memcpy(q->buffer, data + chunklen, ERING_BYTES(count));
-//         q->w += count;
+//         q->head += count;
 //     }
 //
 //     return 0;
@@ -170,7 +169,7 @@ ERING_NAME1(_popwrite) (struct ERING_NAME() *ring, int fd, size_t count) {
 //         return -1;
 //     }
 //
-//     q->r = ERING_READER_CALC(q, count);
+//     q->tail = ERING_READER_CALC(q, count);
 //     return 0;
 // }
 //
@@ -188,7 +187,7 @@ ERING_NAME1(_popwrite) (struct ERING_NAME() *ring, int fd, size_t count) {
 //     }
 //
 //     toend = ERING_FREE_TOEND(q);
-//     firstbytes = read(fd, q->buffer + q->w, ERING_BYTES(toend));
+//     firstbytes = read(fd, q->buffer + q->head, ERING_BYTES(toend));
 //     if (firstbytes == 0) {
 //         /* EOF */
 //         return CFS_EOF;
@@ -206,7 +205,7 @@ ERING_NAME1(_popwrite) (struct ERING_NAME() *ring, int fd, size_t count) {
 //     if (count) {
 //         *count = firstbytes / ERING_BYTES(1);
 //     }
-//     q->w = ERING_WRITER_CALC(q, firstbytes / ERING_BYTES(1));
+//     q->head = ERING_WRITER_CALC(q, firstbytes / ERING_BYTES(1));
 //     avail = ERING_AVAILABLE(q);
 //     if (avail == 0) {
 //         /* Buffer is full */
@@ -216,7 +215,7 @@ ERING_NAME1(_popwrite) (struct ERING_NAME() *ring, int fd, size_t count) {
 //     if (firstbytes / ERING_BYTES(1) < toend) {
 //         return CFS_OK;
 //     }
-//     secondbytes = read(fd, q->buffer + q->w, ERING_BYTES(avail));
+//     secondbytes = read(fd, q->buffer + q->head, ERING_BYTES(avail));
 //     if (secondbytes == 0) {
 //         /* EOF */
 //         return CFS_EOF;
@@ -234,7 +233,7 @@ ERING_NAME1(_popwrite) (struct ERING_NAME() *ring, int fd, size_t count) {
 //     if (count) {
 //         *count = (firstbytes + secondbytes) / ERING_BYTES(1);
 //     }
-//     q->w = ERING_WRITER_CALC(q, secondbytes / ERING_BYTES(1));
+//     q->head = ERING_WRITER_CALC(q, secondbytes / ERING_BYTES(1));
 //     return CFS_OK;
 // }
 //
