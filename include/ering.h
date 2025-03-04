@@ -21,9 +21,14 @@
 #define ERING_CALC(b, n) ((n) & (b)->mask)
 #define ERING_USED(b) ERING_CALC(b, (b)->head - (b)->tail)
 #define ERING_AVAIL(b) ERING_CALC(b, (b)->tail - ((b)->head + 1))
-#define ERING_INCR(b) (b)->head = ERING_CALC(b, (b)->head + 1)
-#define ERING_WPTR(b) ((b)->buffer + (b)->head)
-#define ERING_RPTR(b) ((b)->buffer + (b)->tail)
+#define ERING_INCRHEAD(b) (b)->head = ERING_CALC(b, (b)->head + 1)
+#define ERING_DECRHEAD(b) (b)->head = ERING_CALC(b, (b)->head - 1)
+#define ERING_INCRTAIL(b) (b)->tail = ERING_CALC(b, (b)->tail + 1)
+#define ERING_DECRTAIL(b) (b)->tail = ERING_CALC(b, (b)->tail - 1)
+#define ERING_TAILPTR(b) ((b)->buffer + (b)->tail)
+#define ERING_HEADPTR(b) ((b)->buffer + (b)->head)
+#define ERING_HEADPTROFF(b, off) \
+    ((b)->buffer + (((b)->head - off) & (b)->mask))
 #define ERING_GET(b) ((b)->buffer[(b)->tail])
 #define ERING_ISEMPTY(b) (ERING_USED(b) == 0)
 #define ERING_ISFULL(b) (ERING_AVAIL(b) == 0)
@@ -33,7 +38,7 @@
       n < end ? n : end;})
 #define ERING_SKIP(b, n) (b)->tail = ERING_CALC((b), (b)->tail + (n))
 #define ERING_POP(b) \
-    ring->buffer[ring->tail]; \
+    (b)->buffer[(b)->tail]; \
     (b)->tail = ERING_CALC(b, (b)->tail + 1)
 
 
