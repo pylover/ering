@@ -28,8 +28,9 @@
 #define ERING_TAILPTR(b) ((b)->buffer + (b)->tail)
 #define ERING_HEADPTR(b) ((b)->buffer + (b)->head)
 #define ERING_HEADPTROFF(b, off) \
-    ((b)->buffer + (((b)->head - off) & (b)->mask))
-#define ERING_GET(b) ((b)->buffer[(b)->tail])
+    ((b)->buffer + (((b)->head - (off)) & (b)->mask))
+#define ERING_TAIL(b) ((b)->buffer[(b)->tail])
+#define ERING_TAILOFF(b, off) ((b)->buffer[((b)->tail + (off)) & (b)->mask])
 #define ERING_ISEMPTY(b) (ERING_USED(b) == 0)
 #define ERING_ISFULL(b) (ERING_AVAIL(b) == 0)
 #define ERING_USED_TOEND(b) \
